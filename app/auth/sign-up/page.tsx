@@ -20,6 +20,7 @@ export default function SignUpPage() {
   const [fullName, setFullName] = useState("")
   const [role, setRole] = useState<string>("")
   const [organizationName, setOrganizationName] = useState("")
+  const [organizationId, setOrganizationId] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
@@ -42,23 +43,72 @@ export default function SignUpPage() {
       return
     }
 
+    let orgId = organizationId
     try {
-      const { error } = await supabase.auth.signUp({
+      // Only create organization for admin
+      if (role === "organization_admin") {
+        if (!organizationName) {
+          setError("Please enter your organization name")
+          setIsLoading(false)
+          return
+        }
+        const res = await fetch("/api/create-organization", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: organizationName }),
+        })
+        const contentType = res.headers.get("content-type") || ""
+        let orgResult: any = {}
+       
+          orgResult = await res.json()
+        
+        if (!res.ok || !orgResult.id) {
+          setError(orgResult.error || "Failed to create organization")
+          setIsLoading(false)
+          return
+        }
+        orgId = orgResult.id
+        setOrganizationId(orgId)
+      }
+
+      // Prepare sign up metadata
+      const signUpData: Record<string, any> = {
+        full_name: fullName,
+        role: role,
+      }
+      if (role === "organization_admin" && orgId) {
+        signUpData.organization_id = orgId
+      }
+
+      const { data, error } = await supabase.auth.signUp({
         email,
-        password,
-        options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/dashboard`,
-          data: {
-            full_name: fullName,
-            role: role,
-            organization_name: organizationName,
-          },
-        },
+        password
       })
       if (error) throw error
+      
+      // After sign up, update the profile to ensure it is created/updated
+      if (data?.user?.id) {
+        // Wait a moment for trigger to run (optional, but helps with race conditions)
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        await supabase.from("profiles").upsert({
+          id: data.user.id,
+          email,
+          full_name: fullName,
+          role,
+          organization_id: orgId || null,
+        })
+      }
+
       router.push("/auth/sign-up-success")
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+    } catch (error: any) {
+      if (typeof error?.message === "string") {
+        setError(error.message)
+      } else if (typeof error === "string") {
+        setError(error)
+      } else {
+        console.error(error)
+        setError("An unexpected error occurred during sign up. Please try again.")
+      }
     } finally {
       setIsLoading(false)
     }
