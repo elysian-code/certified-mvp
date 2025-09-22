@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
+import { _getUser, signUp } from "@/lib/server-auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Award } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
@@ -20,100 +20,44 @@ export default function SignUpPage() {
   const [fullName, setFullName] = useState("")
   const [role, setRole] = useState<string>("")
   const [organizationName, setOrganizationName] = useState("")
-  const [organizationId, setOrganizationId] = useState<string>("")
+  // Removed unused organizationId
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
+  useEffect(() => {
+    async function checkAuth() {
+      const user = await _getUser();
+      if (user) {
+        router.push("/dashboard");
+      }
+    }
+    checkAuth();
+  }, [router]);
+  
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
-    setIsLoading(true)
-    setError(null)
-
+    setIsLoading(true);
+    setError(null);
     if (password !== confirmPassword) {
-      setError("Passwords do not match")
-      setIsLoading(false)
-      return
+      setError("Passwords do not match");
+      setIsLoading(false);
+      return;
     }
-
     if (!role) {
-      setError("Please select a role")
-      setIsLoading(false)
-      return
+      setError("Please select a role");
+      setIsLoading(false);
+      return;
     }
-
-    let orgId = organizationId
     try {
-      // Only create organization for admin
-      if (role === "organization_admin") {
-        if (!organizationName) {
-          setError("Please enter your organization name")
-          setIsLoading(false)
-          return
-        }
-        const res = await fetch("/api/create-organization", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: organizationName }),
-        })
-        const contentType = res.headers.get("content-type") || ""
-        let orgResult: any = {}
-       
-          orgResult = await res.json()
-        
-        if (!res.ok || !orgResult.id) {
-          setError(orgResult.error || "Failed to create organization")
-          setIsLoading(false)
-          return
-        }
-        orgId = orgResult.id
-        setOrganizationId(orgId)
-      }
-
-      // Prepare sign up metadata
-      const signUpData: Record<string, any> = {
-        full_name: fullName,
-        role: role,
-      }
-      if (role === "organization_admin" && orgId) {
-        signUpData.organization_id = orgId
-      }
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password
-      })
-      if (error) throw error
-      
-      // After sign up, update the profile to ensure it is created/updated
-      if (data?.user?.id) {
-        // Wait a moment for trigger to run (optional, but helps with race conditions)
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        await supabase.from("profiles").upsert({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          role,
-          organization_id: orgId || null,
-        })
-      }
-
-      router.push("/auth/sign-up-success")
+      await signUp({ email, password, fullName, role, organizationName });
+      router.push("/dashboard");
     } catch (error: any) {
-      if (typeof error?.message === "string") {
-        setError(error.message)
-      } else if (typeof error === "string") {
-        setError(error)
-      } else {
-        console.error(error)
-        setError("An unexpected error occurred during sign up. Please try again.")
-      }
+      setError(error?.message || "An unexpected error occurred during sign up. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
-
+  };
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
       <div className="w-full max-w-md">
@@ -125,7 +69,6 @@ export default function SignUpPage() {
           <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
           <p className="text-gray-600">Get started with professional certification management</p>
         </div>
-
         <Card className="shadow-lg border-0">
           <CardHeader>
             <CardTitle>Sign Up</CardTitle>
@@ -217,5 +160,5 @@ export default function SignUpPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
