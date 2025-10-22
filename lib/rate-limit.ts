@@ -12,11 +12,20 @@ export interface RateLimitConfig {
   maxRequests: number // Maximum requests per window
 }
 
+export interface RateLimitResult {
+  success: boolean
+  remaining: number
+  resetTime: number
+  retryAfter?: number
+}
+
 export const rateLimitConfigs = {
+  inviteEmployee: { windowMs: 60 * 1000, maxRequests: 5 }, // 5 invites per minute
   default: { windowMs: 15 * 60 * 1000, maxRequests: 100 }, // 100 requests per 15 minutes
   auth: { windowMs: 15 * 60 * 1000, maxRequests: 5 }, // 5 auth attempts per 15 minutes
   ai: { windowMs: 60 * 1000, maxRequests: 10 }, // 10 AI requests per minute
   certificate: { windowMs: 60 * 1000, maxRequests: 5 }, // 5 certificate generations per minute
+  enrollEmployee: { windowMs: 60 * 1000, maxRequests: 10 }, // 10 enrollments per minute
 }
 
 export function rateLimit(

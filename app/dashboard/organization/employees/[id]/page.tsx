@@ -1,110 +1,166 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { notFound, redirect } from "next/navigation"
+import Link from "next/link"
+import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { 
+  ArrowLeft, 
+  Mail, 
+  Calendar, 
+  Building, 
+  Award, 
+  User,
+  BookOpen,
+  FileText
+} from "lucide-react"
+import { Progress } from "@/components/ui/progress"
 import { CertificateGenerator } from "@/components/certificate-generator"
-import { User, Award, BookOpen, FileText, Calendar } from "lucide-react"
 
-interface Employee {
-  id: string
-  full_name: string
-  email: string
-  created_at: string
+interface Profile {
+  role: string
+  organization: {
+    id: string
+  }
 }
 
 interface Program {
   id: string
   name: string
+  description: string | null
   status: string
-  enrollment_date: string
-  completion_date: string | null
   progress_percentage: number
+  enrolled_at: string
+  completed_at: string | null
 }
 
 interface Certificate {
   id: string
   certificate_number: string
   issued_date: string
+  program_id: string
+  program: {
+    name: string
+  }
   status: string
-  program_name: string
 }
 
-export default function EmployeeDetailPage({ params }: { params: { id: string } }) {
-  const [employee, setEmployee] = useState<Employee | null>(null)
-  const [programs, setPrograms] = useState<Program[]>([])
-  const [certificates, setCertificates] = useState<Certificate[]>([])
-  const [loading, setLoading] = useState(true)
-  const supabase = createClient()
-
-  useEffect(() => {
-    fetchEmployeeData()
-  }, [params.id])
-
-  const fetchEmployeeData = async () => {
-    try {
-      const { data: user } = await supabase.auth.getUser()
-      if (!user.user) return
-
-      // Fetch employee details
-      const { data: employeeData } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, created_at")
-        .eq("id", params.id)
-        .single()
-
-      if (employeeData) {
-        setEmployee(employeeData)
-      }
-
-      // Fetch employee programs
-      const { data: programsData } = await supabase
-        .from("employee_progress")
-        .select(`
-          *,
-          certification_programs(id, name)
-        `)
-        .eq("employee_id", params.id)
-
-      if (programsData) {
-        const formattedPrograms = programsData.map((p) => ({
-          id: p.certification_programs.id,
-          name: p.certification_programs.name,
-          status: p.status,
-          enrollment_date: p.enrollment_date,
-          completion_date: p.completion_date,
-          progress_percentage: p.progress_percentage,
-        }))
-        setPrograms(formattedPrograms)
-      }
-
-      // Fetch employee certificates
-      const { data: certificatesData } = await supabase
-        .from("certificates")
-        .select(`
-          *,
-          certification_programs(name)
-        `)
-        .eq("employee_id", params.id)
-
-      if (certificatesData) {
-        const formattedCertificates = certificatesData.map((c) => ({
-          id: c.id,
-          certificate_number: c.certificate_number,
-          issued_date: c.issued_date,
-          status: c.status,
-          program_name: c.certification_programs.name,
-        }))
-        setCertificates(formattedCertificates)
-      }
-    } catch (error) {
-      console.error("Error fetching employee data:", error)
-    } finally {
-      setLoading(false)
+interface Employee {
+  id: string
+  full_name: string
+  email: string
+  avatar_url: string | null
+  role: string
+  created_at: string
+  employee_progress: Array<{
+    id: string
+    status: string
+    progress_percentage: number
+    enrolled_at: string
+    completed_at: string | null
+    program: {
+      id: string
+      name: string
+      description: string | null
     }
+  }>
+  certificates: Certificate[]
+}
+
+export const revalidate = 0 // Disable caching for this page
+
+export default async function EmployeeDetailPage({ 
+  params 
+}: { 
+  params: { id: string }
+}) {
+  if (!params?.id) {
+    notFound()
   }
+
+  const supabase = await createClient()
+
+  // Authenticate user
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    redirect("/auth/login")
+  }
+
+  // Get user profile and verify organization admin
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("*, organization:organizations(*)")
+    .eq("id", user.id)
+    .single() as { data: Profile | null; error: any }
+
+  if (profileError || !profile || !profile.organization) {
+    redirect("/auth/login")
+  }
+
+  if (profile.role !== "organization_admin") {
+    redirect("/dashboard/employee")
+  }
+
+  // Get employee details with progress and certificates
+  const { data: employeeData, error: employeeError } = await supabase
+    .from("profiles")
+    .select(`
+      *,
+      employee_progress(
+        *,
+        program:certification_programs(
+          id,
+          name,
+          description
+        )
+      ),
+      certificates(
+        id,
+        certificate_number,
+        issued_date,
+        program_id,
+        status,
+        program:certification_programs(
+          name
+        )
+      )
+    `)
+    .eq("id", params.id)
+    .eq("organization_id", profile.organization.id)
+    .eq("role", "employee")
+    .single() as { data: Employee | null; error: any }
+
+  if (!employeeData || employeeError) {
+    return notFound()
+  }
+
+  const employee = employeeData
+
+  // Transform employee_progress and certificates for easier use
+  const programs = employee.employee_progress.map(progress => ({
+    id: progress.program.id,
+    name: progress.program.name,
+    description: progress.program.description,
+    status: progress.status,
+    progress_percentage: progress.progress_percentage,
+    enrollment_date: progress.enrolled_at,
+    completion_date: progress.completed_at
+  }))
+
+  const certificates = employee.certificates.map(cert => ({
+    id: cert.id,
+    certificate_number: cert.certificate_number,
+    issued_date: cert.issued_date,
+    program_id: cert.program_id,
+    program_name: cert.program.name,
+    status: cert.status
+  }))
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -119,14 +175,6 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
       default:
         return "bg-gray-100 text-gray-800"
     }
-  }
-
-  if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading employee details...</div>
-  }
-
-  if (!employee) {
-    return <div className="text-center">Employee not found</div>
   }
 
   return (
@@ -269,7 +317,8 @@ export default function EmployeeDetailPage({ params }: { params: { id: string } 
                         <CertificateGenerator
                           employeeId={employee.id}
                           programId={program.id}
-                          onCertificateGenerated={() => fetchEmployeeData()}
+                          // The CertificateGenerator component will handle its own revalidation
+                          onCertificateGenerated={() => {}}
                         />
                       </div>
                     ))}

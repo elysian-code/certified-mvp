@@ -26,6 +26,27 @@ export default async function EmployeeDashboardPage() {
     redirect("/dashboard")
   }
 
+  // Check if profile has organization
+  if (!profile.organization_id) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
+          <p className="text-gray-600">Welcome, {profile.full_name}</p>
+        </div>
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center">
+              <AlertCircle className="mx-auto h-12 w-12 text-yellow-500" />
+              <h3 className="mt-2 text-lg font-medium text-gray-900">No Organization Assigned</h3>
+              <p className="mt-1 text-sm text-gray-500">Please contact your administrator to get assigned to an organization.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   // Get employee progress and certificates
   const [progressResult, certificatesResult, availableProgramsResult] = await Promise.all([
     supabase
@@ -47,7 +68,7 @@ export default async function EmployeeDashboardPage() {
     supabase
       .from("certification_programs")
       .select("*")
-      .eq("organization_id", profile.organization.id)
+      .eq("organization_id", profile.organization_id)
       .eq("is_active", true),
   ])
 
@@ -67,6 +88,9 @@ export default async function EmployeeDashboardPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
         <p className="text-gray-600">Welcome back, {profile.full_name}</p>
+        {profile.organization && (
+          <p className="text-sm text-gray-500">Organization: {profile.organization.name}</p>
+        )}
       </div>
 
       {/* Stats Cards */}

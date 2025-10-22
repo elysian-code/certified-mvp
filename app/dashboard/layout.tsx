@@ -17,7 +17,7 @@ export default async function DashboardLayout({
       return null; // Prevent rendering if redirecting
     }
 
-    console.log("Authenticated user:", data.user);
+    
     const { data: profile } = await supabase
       .from("profiles")
       .select("*, organization:organizations(*)")

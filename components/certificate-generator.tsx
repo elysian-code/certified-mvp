@@ -1,19 +1,21 @@
 "use client"
 
 import { useState, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { CertificateTemplate } from "./certificate-template"
 import { Download, FileText, Loader2 } from "lucide-react"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 
-interface CertificateData {
+export interface CertificateData {
   certificateNumber: string
   verificationCode: string
   employeeName: string
   programName: string
   organizationName: string
   issuedDate: string
+  verificationUrl?: string
 }
 
 interface CertificateGeneratorProps {
@@ -27,6 +29,7 @@ export function CertificateGenerator({ employeeId, programId, onCertificateGener
   const [downloading, setDownloading] = useState(false)
   const [certificate, setCertificate] = useState<CertificateData | null>(null)
   const certificateRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   const generateCertificate = async () => {
     setGenerating(true)
@@ -40,8 +43,15 @@ export function CertificateGenerator({ employeeId, programId, onCertificateGener
       if (!response.ok) throw new Error("Failed to generate certificate")
 
       const data = await response.json()
-      setCertificate(data.certificate)
-      onCertificateGenerated?.(data.certificate)
+        const certificate = await response.json()
+      const verificationUrl = `${window.location.origin}/verify?code=${data.certificate.verificationCode}`
+      setCertificate({ ...data.certificate, verificationUrl })
+
+      // Force router revalidation using the Next.js App Router
+      router.refresh()
+
+      // Optional callback for additional actions
+      onCertificateGenerated?.({ ...data.certificate, verificationUrl })
     } catch (error) {
       console.error("Error generating certificate:", error)
       alert("Failed to generate certificate. Please try again.")
@@ -121,12 +131,45 @@ export function CertificateGenerator({ employeeId, programId, onCertificateGener
             </Button>
           </div>
 
+          {/* Verification Link */}
+          {certificate.verificationUrl && (
+            <div className="mt-4">
+              <label className="block font-semibold mb-1">Share Verification Link:</label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  value={certificate.verificationUrl}
+                  readOnly
+                  className="w-full border rounded px-2 py-1 font-mono text-xs bg-gray-100"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => navigator.clipboard.writeText(certificate.verificationUrl!)}
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Certificate Preview */}
-          <div className="border rounded-lg p-4 bg-gray-50">
+          <div className="border rounded-lg p-4 bg-gray-50 mt-4">
             <h3 className="text-lg font-semibold mb-4">Certificate Preview</h3>
             <div className="flex justify-center">
               <div className="transform scale-75 origin-top">
-                <CertificateTemplate ref={certificateRef} data={certificate} />
+                {certificate && (
+                  <CertificateTemplate
+                    template={"classic"}
+                    learnerName={certificate.employeeName}
+                    programTitle={certificate.programName}
+                    completionDate={certificate.issuedDate}
+                    certificateId={certificate.certificateNumber}
+                    organizationName={certificate.organizationName}
+                    verificationUrl={certificate.verificationUrl || ""}
+                  />
+                )}
               </div>
             </div>
           </div>

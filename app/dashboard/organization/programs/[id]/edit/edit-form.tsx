@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
@@ -13,6 +13,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { CertificatePicker } from "@/components/certificate-picker"
 
+interface ProgramData {
+  id: string
+  name: string
+  description: string | null
+  requirements: string | null
+  duration_months: number
+  is_active: boolean
+  certificate_template: string
+  organization_id: string
+}
+
 interface FormData {
   name: string
   description: string
@@ -22,19 +33,22 @@ interface FormData {
   isActive: boolean
 }
 
-export default function NewProgramPage() {
-  const [formData, setFormData] = useState<FormData>({
-    name: "",
-    description: "",
-    requirements: "",
-    durationMonths: "",
-    template: "classic",
-    isActive: true
-  })
+interface EditProgramFormProps {
+  program: ProgramData
+}
+
+export function EditProgramForm({ program }: EditProgramFormProps) {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-  const supabase = createClient()
+  const [formData, setFormData] = useState<FormData>({
+    name: program.name,
+    description: program.description || "",
+    requirements: program.requirements || "",
+    durationMonths: program.duration_months.toString(),
+    template: program.certificate_template,
+    isActive: program.is_active
+  })
 
   const handleChange = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -61,7 +75,9 @@ export default function NewProgramPage() {
     }
 
     try {
-      // Get current user and organization
+      const supabase = createClient()
+      
+      // Get current user and check authorization
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError || !user) {
         throw new Error(authError?.message || "Not authenticated")
@@ -78,47 +94,37 @@ export default function NewProgramPage() {
       }
 
       if (profile.role !== "organization_admin") {
-        throw new Error("Unauthorized: Only organization admins can create programs")
+        throw new Error("Unauthorized: Only organization admins can edit programs")
       }
 
-      // Create program
-      // Prepare program data
+      // Update program
       const programData = {
         name: formData.name.trim(),
         description: formData.description?.trim() || null,
         requirements: formData.requirements?.trim() || null,
         duration_months: Number(formData.durationMonths),
         is_active: formData.isActive,
-        certificate_template: formData.template || 'classic',
-        organization_id: profile.organization_id
+        certificate_template: formData.template || 'classic'
       }
 
-      const { data: newProgram, error: insertError } = await supabase
+      const { error: updateError } = await supabase
         .from("certification_programs")
-        .insert(programData)
-        .select()
-        .single()
+        .update(programData)
+        .eq("id", program.id)
+        .eq("organization_id", profile.organization_id)
 
-      if (insertError) {
-        if (insertError.code === "23505") {
-          throw new Error("A program with this name already exists")
-        }
-        throw new Error(insertError.message || "Failed to create program")
+      if (updateError) {
+        throw new Error(updateError.message || "Failed to update program")
       }
 
-      if (!newProgram) {
-        throw new Error("Failed to retrieve the created program")
-      }
-
-      // Ensure data is revalidated and navigate to the new program's page
-      router.refresh() // Revalidate the data
-      router.push(`/dashboard/organization/programs/${newProgram.id}`)
+      router.refresh()
+      router.push(`/dashboard/organization/programs/${program.id}`)
     } catch (error) {
-      console.error("Error creating program:", error)
+      console.error("Error updating program:", error)
       setError(
         error instanceof Error 
           ? error.message 
-          : "Failed to create program. Please try again."
+          : "Failed to update program. Please try again."
       )
     } finally {
       setIsLoading(false)
@@ -129,23 +135,29 @@ export default function NewProgramPage() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="mb-8">
         <Link
-          href="/dashboard/organization/programs"
+          href={`/dashboard/organization/programs/${program.id}`}
           className="inline-flex items-center text-blue-600 hover:text-blue-500 mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Programs
+          Back to Program
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">Create New Program</h1>
-        <p className="text-gray-600">Set up a new certification program for your organization</p>
+        <h1 className="text-3xl font-bold text-gray-900">Edit Program</h1>
+        <p className="mt-2 text-gray-600">Update your certification program details</p>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
           <CardTitle>Program Details</CardTitle>
-          <CardDescription>Provide the basic information for your certification program</CardDescription>
+          <CardDescription>Modify the information for your certification program</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
             <CertificatePicker
               value={formData.template}
               onChange={(template) => setFormData(prev => ({ ...prev, template }))}
@@ -207,24 +219,18 @@ export default function NewProgramPage() {
               <Label htmlFor="active">Active (employees can enroll)</Label>
             </div>
 
-            {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-100 p-4 rounded-lg flex items-start">
-                <svg className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="flex space-x-4">
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : "Create Program"}
+            <div className="flex justify-end space-x-4 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                disabled={isLoading}
+              >
+                Cancel
               </Button>
-              <Link href="/dashboard/organization/programs">
-                <Button type="button" variant="outline">
-                  Cancel
-                </Button>
-              </Link>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Updating..." : "Update Program"}
+              </Button>
             </div>
           </form>
         </CardContent>

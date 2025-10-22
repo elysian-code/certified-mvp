@@ -1,0 +1,23 @@
+[
+  {
+    "id": "classic",
+    "name": "Classic",
+    "description": "Elegant gold border, serif fonts, and formal layout for traditional certificates.",
+    "preview": "/certificate-templates/classic-preview.png",
+    "html": "/certificate-templates/classic.html"
+  },
+  {
+    "id": "modern",
+    "name": "Modern",
+    "description": "Gradient background, bold sans-serif fonts, and contemporary design.",
+    "preview": "/certificate-templates/modern-preview.png",
+    "html": "/certificate-templates/modern.html"
+  },
+  {
+    "id": "minimal",
+    "name": "Minimal",
+    "description": "Clean lines, subtle colors, and minimalist layout for a simple professional look.",
+    "preview": "/certificate-templates/minimal-preview.png",
+    "html": "/certificate-templates/minimal.html"
+  }
+]

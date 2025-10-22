@@ -13,6 +13,8 @@ export const ErrorCodes = {
   NOT_FOUND: { code: "NOT_FOUND", message: "Resource not found", statusCode: 404 },
   VALIDATION_ERROR: { code: "VALIDATION_ERROR", message: "Invalid input data", statusCode: 400 },
   RATE_LIMITED: { code: "RATE_LIMITED", message: "Too many requests", statusCode: 429 },
+  CONFLICT: { code: "CONFLICT", message: "Resource conflict", statusCode: 409 },
+  TOO_MANY_REQUESTS: { code: "TOO_MANY_REQUESTS", message: "Too many requests", statusCode: 429 },
   INTERNAL_ERROR: { code: "INTERNAL_ERROR", message: "Internal server error", statusCode: 500 },
   BAD_REQUEST: { code: "BAD_REQUEST", message: "Bad request", statusCode: 400 },
 } as const

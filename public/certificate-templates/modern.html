@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Modern Certificate</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400;700&display=swap');
+    body {
+      width: 210mm;
+      height: 297mm;
+      margin: 0;
+      background: linear-gradient(135deg, #4F8EF7 0%, #A7C7E7 100%);
+      font-family: 'Roboto', sans-serif;
+      color: #222;
+    }
+    .container {
+      width: 180mm;
+      height: 257mm;
+      margin: 16mm auto;
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 0 32px #4f8ef733;
+      padding: 32mm 24mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .header {
+      text-align: center;
+      font-family: 'Montserrat', sans-serif;
+      color: #4F8EF7;
+      font-size: 2.2em;
+      font-weight: 700;
+      margin-bottom: 1em;
+      letter-spacing: 2px;
+    }
+    .details {
+      text-align: center;
+      margin-bottom: 2em;
+    }
+    .details .name {
+      font-size: 2em;
+      font-weight: 700;
+      color: #222;
+      margin: 0.5em 0;
+    }
+    .details .program {
+      font-size: 1.3em;
+      color: #4F8EF7;
+      font-weight: 700;
+      margin: 0.5em 0;
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      font-size: 1em;
+      margin-top: 2em;
+    }
+    .footer .meta {
+      color: #555;
+    }
+    .footer .qr {
+      width: 80px;
+      height: 80px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">CERTIFICATE</div>
+    <div class="details">
+      <div>Awarded to</div>
+      <div class="name">{{employeeName}}</div>
+      <div>for completing</div>
+      <div class="program">{{programName}}</div>
+      <div>on <span>{{completionDate}}</span></div>
+    </div>
+    <div class="footer">
+      <div class="meta">
+        Certificate ID: <strong>{{certificateId}}</strong>
+      </div>
+      <div class="qr">
+        {{qrCode}}
+      </div>
+    </div>
+  </div>
+</body>
+</html>
