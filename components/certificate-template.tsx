@@ -1,89 +1,88 @@
 "use client"
 
-import { forwardRef } from "react"
 
-interface CertificateData {
-  certificateNumber: string
-  verificationCode: string
-  employeeName: string
-  programName: string
+import React from "react"
+import { QRCodeSVG } from "qrcode.react"
+
+export type CertificateTemplateProps = {
+  template: "classic" | "modern" | "minimal"
+  learnerName: string
+  programTitle: string
+  completionDate: string
+  certificateId: string
   organizationName: string
-  issuedDate: string
+  verificationUrl: string
 }
 
-interface CertificateTemplateProps {
-  data: CertificateData
-}
-
-export const CertificateTemplate = forwardRef<HTMLDivElement, CertificateTemplateProps>(({ data }, ref) => {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
+export function CertificateTemplate({
+  template,
+  learnerName,
+  programTitle,
+  completionDate,
+  certificateId,
+  organizationName,
+  verificationUrl,
+}: CertificateTemplateProps) {
+  switch (template) {
+    case "classic":
+      return (
+        <div className="border-4 border-yellow-700 p-8 bg-white rounded-xl w-[800px] h-[600px] flex flex-col justify-between shadow-lg">
+          <div>
+            <h2 className="text-4xl font-serif font-bold text-center text-yellow-800 mb-2">Certificate of Completion</h2>
+            <p className="text-lg text-center mb-4">This certifies that</p>
+            <p className="text-3xl font-semibold text-center text-gray-900 mb-2">{learnerName}</p>
+            <p className="text-center mb-4">has successfully completed the program</p>
+            <p className="text-2xl font-bold text-center text-blue-700 mb-2">{programTitle}</p>
+            <p className="text-center text-gray-700">as administered by <span className="font-semibold">{organizationName}</span></p>
+          </div>
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-sm">Date: {completionDate}</p>
+              <p className="text-sm">Certificate ID: {certificateId}</p>
+            </div>
+            <QRCodeSVG value={verificationUrl} size={64} />
+          </div>
+        </div>
+      )
+    case "modern":
+      return (
+        <div className="bg-gradient-to-r from-blue-100 to-blue-300 p-8 rounded-2xl w-[800px] h-[600px] flex flex-col justify-between shadow-xl">
+          <div>
+            <h2 className="text-4xl font-bold text-center text-blue-900 mb-2">CERTIFICATE</h2>
+            <p className="text-lg text-center mb-4">Awarded to</p>
+            <p className="text-3xl font-bold text-center text-gray-900 mb-2">{learnerName}</p>
+            <p className="text-center mb-4">for completing</p>
+            <p className="text-2xl font-semibold text-center text-blue-800 mb-2">{programTitle}</p>
+            <p className="text-center text-gray-700">as administered by <span className="font-semibold">{organizationName}</span></p>
+          </div>
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-sm">Date: {completionDate}</p>
+              <p className="text-sm">ID: {certificateId}</p>
+            </div>
+            <QRCodeSVG value={verificationUrl} size={64} />
+          </div>
+        </div>
+      )
+    case "minimal":
+      return (
+        <div className="border border-gray-300 p-8 bg-white rounded-lg w-[800px] h-[600px] flex flex-col justify-between">
+          <div>
+            <h2 className="text-2xl font-medium text-center text-gray-700 mb-2">Certificate</h2>
+            <p className="text-center mb-4">{learnerName}</p>
+            <p className="text-center mb-2">Program: {programTitle}</p>
+            <p className="text-center text-gray-700">Organization: <span className="font-semibold">{organizationName}</span></p>
+          </div>
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-xs">Date: {completionDate}</p>
+              <p className="text-xs">ID: {certificateId}</p>
+            </div>
+            <QRCodeSVG value={verificationUrl} size={48} />
+          </div>
+        </div>
+      )
+    default:
+      return null
   }
-
-  return (
-    <div
-      ref={ref}
-      className="w-[800px] h-[600px] bg-white border-8 border-blue-800 relative overflow-hidden print:border-blue-800"
-      style={{ fontFamily: "serif" }}
-    >
-      {/* Decorative border */}
-      <div className="absolute inset-4 border-2 border-blue-600"></div>
-
-      {/* Header */}
-      <div className="text-center pt-12 pb-8">
-        <h1 className="text-4xl font-bold text-blue-800 mb-2">CERTIFICATE OF COMPLETION</h1>
-        <div className="w-32 h-1 bg-blue-600 mx-auto"></div>
-      </div>
-
-      {/* Content */}
-      <div className="px-16 text-center space-y-6">
-        <p className="text-lg text-gray-700">This is to certify that</p>
-
-        <h2 className="text-3xl font-bold text-gray-900 border-b-2 border-blue-600 pb-2 inline-block">
-          {data.employeeName}
-        </h2>
-
-        <p className="text-lg text-gray-700">has successfully completed the certification program</p>
-
-        <h3 className="text-2xl font-semibold text-blue-800 py-4">{data.programName}</h3>
-
-        <p className="text-lg text-gray-700">
-          as administered by <span className="font-semibold">{data.organizationName}</span>
-        </p>
-
-        <div className="pt-8 pb-4">
-          <p className="text-base text-gray-600">Issued on {formatDate(data.issuedDate)}</p>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="absolute bottom-8 left-16 right-16 flex justify-between items-end">
-        <div className="text-center">
-          <div className="w-48 border-t border-gray-400 pt-2">
-            <p className="text-sm text-gray-600">Authorized Signature</p>
-          </div>
-        </div>
-
-        <div className="text-center">
-          <div className="bg-blue-50 p-3 rounded border">
-            <p className="text-xs text-gray-600 mb-1">Certificate Number</p>
-            <p className="text-sm font-mono font-bold">{data.certificateNumber}</p>
-            <p className="text-xs text-gray-600 mt-1">Verification Code</p>
-            <p className="text-sm font-mono font-bold">{data.verificationCode}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Decorative elements */}
-      <div className="absolute top-8 left-8 w-16 h-16 border-4 border-blue-200 rounded-full opacity-20"></div>
-      <div className="absolute top-8 right-8 w-16 h-16 border-4 border-blue-200 rounded-full opacity-20"></div>
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-20 h-1 bg-blue-600"></div>
-    </div>
-  )
-})
-
-CertificateTemplate.displayName = "CertificateTemplate"
+}

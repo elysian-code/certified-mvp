@@ -40,7 +40,7 @@ export default function LandingPage() {
       <section className="py-20 px-4">
         <div className="container mx-auto text-center max-w-4xl">
           <Badge className="mb-6 bg-blue-100 text-blue-800 hover:bg-blue-100">
-            Professional Certification Platform
+            Professional Certification Platform 
           </Badge>
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 text-balance">
             Streamline Your <span className="text-blue-600">Certification</span> Process

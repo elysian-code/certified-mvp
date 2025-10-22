@@ -33,6 +33,12 @@ export const verificationCodeSchema = z.object({
   verificationCode: z.string().regex(/^[A-Z0-9]{12}$/, "Invalid verification code format"),
 })
 
+export const inviteEmployeeSchema = z.object({
+  email: emailSchema,
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  programId: uuidSchema,
+})
+
 // Sanitization helpers
 export const sanitizeString = (input: string): string => {
   return input.trim().replace(/[<>]/g, "")

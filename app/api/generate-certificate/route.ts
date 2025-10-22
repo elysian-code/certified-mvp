@@ -4,6 +4,9 @@ import { validateAuth, validateRole, addSecurityHeaders, getClientIP, logSecurit
 import { rateLimit, rateLimitConfigs, getRateLimitHeaders } from "@/lib/rate-limit"
 import { generateCertificateSchema } from "@/lib/validation"
 import { handleAPIError, createErrorResponse, ErrorCodes, validateRequestSize } from "@/lib/error-handler"
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib"
+import fs from "fs"
+import path from "path"
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,7 +53,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { employeeId, programId } = generateCertificateSchema.parse(body)
 
-    const supabase = createClient()
+    const supabase = await createClient()
 
     const { data: employee, error: employeeError } = await supabase
       .from("profiles")
@@ -75,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     const { data: program, error: programError } = await supabase
       .from("certification_programs")
-      .select("name, description, organization_id, organizations(name)")
+      .select("name, description, organization_id, certificate_template, organizations(name)")
       .eq("id", programId)
       .eq("organization_id", profile.organization_id) // Ensure program belongs to same org
       .single()
@@ -94,6 +97,7 @@ export async function POST(request: NextRequest) {
       return addSecurityHeaders(createErrorResponse(ErrorCodes.NOT_FOUND, { message: "Program not found" }))
     }
 
+    // Strict eligibility: must have completed all required reports and passed CBT test
     const { data: progress } = await supabase
       .from("employee_progress")
       .select("status")
@@ -116,6 +120,59 @@ export async function POST(request: NextRequest) {
       return addSecurityHeaders(
         createErrorResponse(ErrorCodes.BAD_REQUEST, {
           message: "Employee has not completed this program",
+        }),
+      )
+    }
+
+    // Check all required reports are submitted and approved
+    const { data: requiredReports } = await supabase
+      .from("employee_reports")
+      .select("id, status")
+      .eq("employee_id", employeeId)
+      .eq("program_id", programId)
+    const allReportsApproved = requiredReports && requiredReports.length > 0 && requiredReports.every((r: {status: string}) => r.status === "approved")
+    if (!allReportsApproved) {
+      logSecurityEvent(
+        "CERTIFICATE_GENERATION_DENIED",
+        {
+          userId: user.id,
+          employeeId,
+          programId,
+          reason: "Not all required reports approved",
+          ip: clientIP,
+        },
+        request,
+      )
+      return addSecurityHeaders(
+        createErrorResponse(ErrorCodes.BAD_REQUEST, {
+          message: "All required reports must be submitted and approved.",
+        }),
+      )
+    }
+
+    // Check CBT test is passed
+    const { data: testAttempts } = await supabase
+      .from("test_attempts")
+      .select("score, passed")
+      .eq("employee_id", employeeId)
+      .eq("program_id", programId)
+      .order("completed_at", { ascending: false })
+    const passedTest = testAttempts && testAttempts.some((t: {passed: boolean}) => t.passed === true)
+    if (!passedTest) {
+      logSecurityEvent(
+        "CERTIFICATE_GENERATION_DENIED",
+        {
+          userId: user.id,
+          employeeId,
+          programId,
+          reason: "CBT test not passed",
+          ip: clientIP,
+        },
+        request,
+      )
+      return addSecurityHeaders(
+        createErrorResponse(ErrorCodes.BAD_REQUEST, {
+          message: "CBT test must be passed to generate certificate.",
         }),
       )
     }
@@ -196,6 +253,73 @@ export async function POST(request: NextRequest) {
       request,
     )
 
+    // Type assertions for program data
+    type ProgramWithOrg = {
+      name: string;
+      certificate_template: string;
+      organizations: { name: string };
+    };
+
+    const programData = program as unknown as ProgramWithOrg;
+
+    // Generate PDF Certificate
+    const templatePath = path.join(process.cwd(), `public/certificates/${programData.certificate_template}.pdf`)
+    const existingPdfBytes = fs.readFileSync(templatePath)
+    const pdfDoc = await PDFDocument.load(existingPdfBytes)
+    const pages = pdfDoc.getPages()
+    const firstPage = pages[0]
+
+    const { width, height } = firstPage.getSize()
+    const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
+
+    // Draw certificate content
+    firstPage.drawText(programData.organizations.name, {
+      x: width / 2 - 100,
+      y: height - 120,
+      size: 20,
+      font,
+      color: rgb(0, 0, 0),
+    })
+
+    firstPage.drawText("Congratulations!", {
+      x: width / 2 - 80,
+      y: height - 180,
+      size: 16,
+      font,
+    })
+
+    firstPage.drawText(employee.full_name, {
+      x: width / 2 - 100,
+      y: height - 240,
+      size: 24,
+      font,
+    })
+
+    firstPage.drawText(`For completing: ${programData.name}`, {
+      x: width / 2 - 200,
+      y: height - 280,
+      size: 14,
+      font,
+    })
+
+    firstPage.drawText(`Issued on: ${certificate.issued_date}`, {
+      x: width / 2 - 100,
+      y: height - 320,
+      size: 12,
+      font,
+    })
+
+    firstPage.drawText(`Certificate ID: ${certificateNumber}`, {
+      x: 50,
+      y: 50,
+      size: 12,
+      font,
+    })
+
+    // Save PDF
+    const pdfBytes = await pdfDoc.save()
+    fs.writeFileSync(path.join(process.cwd(), `public/certificates/${certificateNumber}.pdf`), pdfBytes)
+
     const response = NextResponse.json({
       certificate: {
         id: certificate.id,
@@ -203,7 +327,7 @@ export async function POST(request: NextRequest) {
         verificationCode,
         employeeName: employee.full_name,
         programName: program.name,
-        organizationName: program.organizations.name,
+  organizationName: Array.isArray(program.organizations) ? (program.organizations[0] as any)?.name : (program.organizations as any)?.name,
         issuedDate: certificate.issued_date,
       },
     })
@@ -212,6 +336,11 @@ export async function POST(request: NextRequest) {
     Object.entries(headers).forEach(([key, value]) => {
       response.headers.set(key, value)
     })
+
+    // Set revalidation tags
+    response.headers.set('x-revalidate-tag', `employee-${employeeId}`)
+    response.headers.set('x-revalidate-tag', `program-${programId}`)
+    response.headers.set('x-revalidate-tag', `organization-${profile.organization_id}`)
 
     return addSecurityHeaders(response)
   } catch (error) {
