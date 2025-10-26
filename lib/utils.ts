@@ -1,5 +1,4 @@
 
-import { randomUUID, createHash } from "crypto";
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -16,9 +15,17 @@ export function formatDate(date: string | Date): string {
   })
 }
 
-export function generateCertIds() {
-  const uuid = randomUUID();
-  const hash = createHash("sha256").update(uuid).digest("hex");
+export async function generateCertIds() {
+  // Use Web Crypto API instead of Node's crypto
+  const uuid = crypto.randomUUID();
+  
+  // Create a hash using Web Crypto API
+  const encoder = new TextEncoder();
+  const data = encoder.encode(uuid);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
   const shortId = hash.substring(0, 10).toUpperCase();
   return { uuid, shortId };
 }

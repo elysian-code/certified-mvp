@@ -38,10 +38,10 @@ interface DashboardNavProps {
 export function DashboardNav({ user, profile }: DashboardNavProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createClient()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleSignOut = async () => {
+    const supabase = createClient()
     await supabase.auth.signOut()
     router.push("/")
   }

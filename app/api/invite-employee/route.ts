@@ -13,7 +13,11 @@ const inviteWithProgramSchema = inviteEmployeeSchema.extend({
   programId: z.string().uuid()
 })
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
+  console.log('Received invite request:', request.url);
   try {
     // Check request size
     await validateRequestSize(request)
@@ -124,7 +128,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate invite token
+    // Generate invite token using Web Crypto API
     const inviteToken = crypto.randomUUID()
     const inviteExpiry = new Date()
     inviteExpiry.setDate(inviteExpiry.getDate() + 7) // Invite valid for 7 days

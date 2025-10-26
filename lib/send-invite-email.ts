@@ -1,25 +1,37 @@
-import { createTransport } from "nodemailer"
+import { createTransport } from 'nodemailer'
 import { formatDate } from "@/lib/utils"
 
-if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-  throw new Error('Email configuration is missing. Check your environment variables.');
+async function createVerifiedTransporter() {
+  // Log email configuration for debugging
+  console.log('Creating email transporter with config:', {
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
+    user: process.env.EMAIL_USER ? '****' : 'not set',
+    pass: process.env.EMAIL_PASS ? '****' : 'not set'
+  });
+
+  // More secure Gmail configuration
+  const transporter = createTransport({
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.EMAIL_PORT || '465'),
+    secure: true, // use SSL
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS // Use app-specific password
+    },
+    tls: {
+      rejectUnauthorized: true
+    }
+  })
+
+  try {
+    await transporter.verify()
+    return transporter
+  } catch (error) {
+    console.error('Email transporter verification failed:', error)
+    throw new Error('Failed to verify email configuration. Please check your Gmail settings.')
+  }
 }
-
-const transporter = createTransport({
-  host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT || "587"),
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-})
-
-// Verify transporter
-transporter.verify().catch((error) => {
-  console.error('Email transporter verification failed:', error);
-  throw error;
-});
 
 interface SendInviteEmailParams {
   email: string
@@ -70,16 +82,39 @@ export async function sendInviteEmail({
 
   try {
     console.log('Attempting to send email to:', email);
+    
+    // Check required environment variables
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      throw new Error('Email configuration is incomplete. Please check EMAIL_USER and EMAIL_PASS environment variables.');
+    }
+
+    const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+    if (!fromEmail) {
+      throw new Error('EMAIL_FROM or EMAIL_USER must be set');
+    }
+    
+    const transporter = await createVerifiedTransporter();
+    
+    // Attempt to send the email
+    console.log('Sending email from:', fromEmail, 'to:', email);
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: email,
-      subject: `Join ${organizationName} and start your certification program`,
+      subject: `Join ${organizationName} organization and start your certification program`,
       html,
+      headers: {
+        'X-Priority': '1', // High priority
+        'X-MSMail-Priority': 'High',
+        'Importance': 'high'
+      }
     });
     console.log('Email sent successfully:', info.messageId);
     return info;
   } catch (error) {
     console.error('Failed to send email:', error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to send invitation email: ${error.message}`);
+    }
     throw new Error('Failed to send invitation email. Please check your email configuration.');
   }
 }

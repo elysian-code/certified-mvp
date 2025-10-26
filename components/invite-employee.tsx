@@ -37,17 +37,26 @@ export function InviteEmployee({ children, onInviteSent, programs }: InviteEmplo
     setError("")
 
     try {
-      console.log('Submitting form data:', formData);
-      const response = await fetch("/api/invite-employee", {
+      console.log('Starting form submission...');
+      console.log('Form data:', formData);
+      const apiUrl = '/api/invite-employee';
+      console.log('Sending request to:', apiUrl);
+      const response = await fetch(`/api/invite-employee`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          // Add CSRF protection
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        // Add credentials to ensure cookies are sent
+        credentials: "same-origin",
         body: JSON.stringify(formData),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to send invite")
+        throw new Error(data.message)
       }
 
       setOpen(false)

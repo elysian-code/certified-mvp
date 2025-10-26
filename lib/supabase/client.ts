@@ -1,5 +1,9 @@
 import { createBrowserClient } from "@supabase/ssr"
+import { supabaseConfig } from "./config"
 
 export function createClient() {
-  return createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  if (typeof window === 'undefined') {
+    throw new Error('createClient should only be used in the browser')
+  }
+  return createBrowserClient(supabaseConfig.url, supabaseConfig.anonKey)
 }
