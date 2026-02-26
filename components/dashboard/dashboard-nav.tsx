@@ -71,39 +71,58 @@ export function DashboardNav({ user, profile }: DashboardNavProps) {
     }
   }
 
+  const initials = profile.full_name
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2)
+
   return (
-    <nav className="bg-white shadow-sm border-b" role="navigation" aria-label="Main navigation">
+    <nav
+      className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm"
+      role="navigation"
+      aria-label="Main navigation"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <div className="flex items-center gap-8">
             <a
               href="#main-content"
-              className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-600 text-white px-4 py-2 rounded-md z-50"
+              className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-indigo-600 text-white px-4 py-2 rounded-md z-50"
             >
               Skip to main content
             </a>
-
-            <Link href="/dashboard" className="flex items-center space-x-2" aria-label="Certified - Go to dashboard">
-              <Award className="h-8 w-8 text-blue-600" aria-hidden="true" />
-              <span className="text-xl font-bold text-gray-900">Certified</span>
+            <Link
+              href="/dashboard"
+              className="flex items-center space-x-2.5"
+              aria-label="Certified — Go to dashboard"
+            >
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm">
+                <Award className="h-4 w-4 text-white" aria-hidden="true" />
+              </div>
+              <span className="text-lg font-bold text-gray-900 tracking-tight">Certified</span>
             </Link>
 
-            <div className="hidden md:ml-10 md:flex md:space-x-8" role="menubar">
+            {/* Desktop Nav Links */}
+            <div className="hidden md:flex items-center gap-1" role="menubar">
               {navigation.map((item) => {
-                const isActive = pathname === item.href
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
                 return (
                   <Link
                     key={item.name}
                     href={item.href}
                     role="menuitem"
-                    className={`inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-sm ${
+                    className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                       isActive
-                        ? "border-b-2 border-blue-500 text-gray-900"
-                        : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        ? "bg-indigo-50 text-indigo-700"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                     aria-current={isActive ? "page" : undefined}
                   >
-                    <item.icon className="h-4 w-4 mr-2" aria-hidden="true" />
+                    <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                     {item.name}
                   </Link>
                 )
@@ -111,16 +130,20 @@ export function DashboardNav({ user, profile }: DashboardNavProps) {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          {/* Right side */}
+          <div className="flex items-center gap-3">
+            {/* Org badge */}
             {profile.organization && (
               <div
-                className="hidden sm:block text-sm text-gray-600"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-xs font-medium text-gray-600 max-w-[160px] truncate"
                 aria-label={`Organization: ${profile.organization.name}`}
               >
-                {profile.organization.name}
+                <Building className="h-3.5 w-3.5 shrink-0 text-gray-400" aria-hidden="true" />
+                <span className="truncate">{profile.organization.name}</span>
               </div>
             )}
 
+            {/* Mobile menu */}
             <div className="md:hidden">
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
@@ -129,65 +152,71 @@ export function DashboardNav({ user, profile }: DashboardNavProps) {
                     size="icon"
                     aria-label="Open navigation menu"
                     aria-expanded={mobileMenuOpen}
-                    aria-controls="mobile-menu"
+                    className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                   >
-                    <Menu className="h-6 w-6" aria-hidden="true" />
+                    <Menu className="h-5 w-5" aria-hidden="true" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-80 sm:w-96">
-                  <SheetHeader>
+                <SheetContent side="left" className="w-72 p-0">
+                  <SheetHeader className="px-5 pt-5 pb-4 border-b border-gray-100">
                     <SheetTitle className="flex items-center space-x-2">
-                      <Award className="h-6 w-6 text-blue-600" aria-hidden="true" />
-                      <span>Certified</span>
+                      <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
+                        <Award className="h-4 w-4 text-white" aria-hidden="true" />
+                      </div>
+                      <span className="text-base font-bold tracking-tight">Certified</span>
                     </SheetTitle>
-                    <SheetDescription>Navigate through your dashboard</SheetDescription>
+                    <SheetDescription className="text-xs text-gray-400 mt-0.5">
+                      {isOrganizationAdmin ? "Organization Admin" : "Learner Portal"}
+                    </SheetDescription>
                   </SheetHeader>
 
-                  <nav className="mt-6" role="navigation" aria-label="Mobile navigation">
-                    <div className="space-y-2">
+                  <nav className="px-3 py-4" role="navigation" aria-label="Mobile navigation">
+                    <div className="space-y-0.5">
                       {navigation.map((item) => {
-                        const isActive = pathname === item.href
+                        const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
                         return (
                           <Link
                             key={item.name}
                             href={item.href}
                             onClick={() => setMobileMenuOpen(false)}
                             onKeyDown={(e) => handleKeyDown(e, item.href)}
-                            className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                               isActive
-                                ? "bg-blue-50 text-blue-700 border-l-4 border-blue-500"
-                                : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                                ? "bg-indigo-50 text-indigo-700"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                             }`}
                             aria-current={isActive ? "page" : undefined}
                           >
-                            <item.icon className="h-5 w-5" aria-hidden="true" />
+                            <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                             <span>{item.name}</span>
                           </Link>
                         )
                       })}
                     </div>
 
-                    <div className="mt-8 pt-6 border-t border-gray-200">
-                      <div className="flex items-center space-x-3 px-4 py-2">
-                        <Avatar className="h-8 w-8">
+                    <div className="mt-6 pt-5 border-t border-gray-100">
+                      <div className="flex items-center gap-3 px-3 mb-3">
+                        <Avatar className="h-9 w-9">
                           <AvatarImage
-                            src={user.user_metadata?.avatar_url || "/placeholder.svg"}
+                            src={user.user_metadata?.avatar_url || ""}
                             alt={`${profile.full_name}'s avatar`}
                           />
-                          <AvatarFallback>{profile.full_name.charAt(0).toUpperCase()}</AvatarFallback>
+                          <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs font-semibold">
+                            {initials}
+                          </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{profile.full_name}</p>
-                          <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                          <p className="text-sm font-semibold text-gray-900 truncate">{profile.full_name}</p>
+                          <p className="text-xs text-gray-400 truncate">{user.email}</p>
                         </div>
                       </div>
                       <Button
                         variant="ghost"
                         onClick={handleSignOut}
-                        className="w-full mt-2 justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="w-full justify-start text-sm text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
                       >
-                        <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
-                        <span>Sign out</span>
+                        <LogOut className="mr-2.5 h-4 w-4" aria-hidden="true" />
+                        Sign out
                       </Button>
                     </div>
                   </nav>
@@ -195,34 +224,47 @@ export function DashboardNav({ user, profile }: DashboardNavProps) {
               </Sheet>
             </div>
 
+            {/* Desktop user menu */}
             <div className="hidden md:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="relative h-8 w-8 rounded-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    className="relative h-9 w-9 rounded-full p-0 hover:ring-2 hover:ring-indigo-200 transition-all"
                     aria-label={`User menu for ${profile.full_name}`}
                   >
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-9 w-9">
                       <AvatarImage
-                        src={user.user_metadata?.avatar_url || "/placeholder.svg"}
+                        src={user.user_metadata?.avatar_url || ""}
                         alt={`${profile.full_name}'s avatar`}
                       />
-                      <AvatarFallback>{profile.full_name.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs font-semibold">
+                        {initials}
+                      </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{profile.full_name}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                  <DropdownMenuLabel className="font-normal pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs font-semibold">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col min-w-0">
+                        <p className="text-sm font-semibold leading-none truncate">{profile.full_name}</p>
+                        <p className="text-xs leading-none text-muted-foreground mt-1 truncate">{user.email}</p>
+                      </div>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-700 focus:bg-red-50">
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    className="text-red-500 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                  >
                     <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
-                    <span>Log out</span>
+                    <span>Sign out</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
