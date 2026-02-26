@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -84,168 +84,189 @@ export default async function EmployeeDashboardPage() {
   const activeCertificates = certificates.filter((c) => c.status === "active")
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">My Dashboard</h1>
-        <p className="text-gray-600">Welcome back, {profile.full_name}</p>
-        {profile.organization && (
-          <p className="text-sm text-gray-500">Organization: {profile.organization.name}</p>
-        )}
+    <div className="space-y-8">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">My Dashboard</h1>
+        <p className="text-gray-500 text-sm mt-1">
+          Welcome back, <span className="font-medium text-gray-700">{profile.full_name}</span>
+          {profile.organization && (
+            <span className="text-gray-400"> · {profile.organization.name}</span>
+          )}
+        </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Programs</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeProgress.length}</div>
-            <p className="text-xs text-muted-foreground">{completedProgress.length} completed</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Certificates</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeCertificates.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {certificates.filter((c) => c.status === "expired").length} expired
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Progress</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {activeProgress.length > 0
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {[
+          {
+            label: "Active Programs",
+            value: activeProgress.length,
+            sub: `${completedProgress.length} completed`,
+            iconBg: "bg-indigo-50",
+            iconColor: "text-indigo-600",
+            Icon: BookOpen,
+          },
+          {
+            label: "Certificates Earned",
+            value: activeCertificates.length,
+            sub: `${certificates.filter((c) => c.status === "expired").length} expired`,
+            iconBg: "bg-amber-50",
+            iconColor: "text-amber-600",
+            Icon: Award,
+          },
+          {
+            label: "Average Progress",
+            value: `${
+              activeProgress.length > 0
                 ? Math.round(activeProgress.reduce((sum, p) => sum + p.progress_percentage, 0) / activeProgress.length)
-                : 0}
-              %
+                : 0
+            }%`,
+            sub: "Across active programs",
+            iconBg: "bg-emerald-50",
+            iconColor: "text-emerald-600",
+            Icon: CheckCircle,
+          },
+          {
+            label: "Available Programs",
+            value: unenrolledPrograms.length,
+            sub: "Ready to enroll",
+            iconBg: "bg-blue-50",
+            iconColor: "text-blue-600",
+            Icon: AlertCircle,
+          },
+        ].map((stat) => (
+          <div key={stat.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-gray-500">{stat.label}</span>
+              <div className={`w-8 h-8 rounded-lg ${stat.iconBg} flex items-center justify-center`}>
+                <stat.Icon className={`h-4 w-4 ${stat.iconColor}`} />
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">Across all programs</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available Programs</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{unenrolledPrograms.length}</div>
-            <p className="text-xs text-muted-foreground">Ready to enroll</p>
-          </CardContent>
-        </Card>
+            <div className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</div>
+            <p className="text-xs text-gray-400">{stat.sub}</p>
+          </div>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Active Programs */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Programs</CardTitle>
-            <CardDescription>Your current certification progress</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {activeProgress.length > 0 ? (
-                activeProgress.map((item) => (
-                  <div key={item.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">{item.program?.name}</h4>
-                      <Badge variant={item.status === "in_progress" ? "default" : "secondary"}>{item.status}</Badge>
-                    </div>
-                    <Progress value={item.progress_percentage} className="h-2" />
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <span>{item.progress_percentage}% complete</span>
-                      <Link href={`/dashboard/employee/programs/${item.program_id}`}>
-                        <Button variant="outline" size="sm">
-                          Continue
-                        </Button>
-                      </Link>
-                    </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="px-6 py-5 border-b border-gray-50">
+            <h2 className="text-sm font-semibold text-gray-900">Active Programs</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Your current certification progress</p>
+          </div>
+          <div className="p-6 space-y-5">
+            {activeProgress.length > 0 ? (
+              activeProgress.map((item) => (
+                <div key={item.id} className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-gray-800 truncate">{item.program?.name}</p>
+                    <Badge
+                      className={`shrink-0 text-xs ${item.status === "in_progress" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-gray-50 text-gray-600 border-gray-200"}`}
+                    >
+                      {item.status}
+                    </Badge>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No active programs. Enroll in a program to get started.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                  <Progress value={item.progress_percentage} className="h-1.5" />
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span>{item.progress_percentage}% complete</span>
+                    <Link href={`/dashboard/employee/programs/${item.program_id}`}>
+                      <Button variant="outline" size="sm" className="h-7 text-xs border-gray-200 hover:bg-gray-50">
+                        Continue →
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <BookOpen className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-sm text-gray-400 mb-3">No active programs yet.</p>
+                <Link href="/dashboard/employee">
+                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-8">
+                    Browse Programs
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Recent Certificates */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Certificates</CardTitle>
-            <CardDescription>Your latest achievements</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {certificates.length > 0 ? (
-                certificates.slice(0, 3).map((cert) => (
-                  <div key={cert.id} className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      <Award className="h-8 w-8 text-yellow-500" />
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="px-6 py-5 border-b border-gray-50">
+            <h2 className="text-sm font-semibold text-gray-900">Recent Certificates</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Your latest achievements</p>
+          </div>
+          <div className="p-6 space-y-4">
+            {certificates.length > 0 ? (
+              <>
+                {certificates.slice(0, 3).map((cert) => (
+                  <div key={cert.id} className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                      <Award className="h-5 w-5 text-amber-500" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{cert.program?.name}</p>
-                      <p className="text-sm text-gray-500">Issued {new Date(cert.issued_date).toLocaleDateString()}</p>
+                      <p className="text-sm font-medium text-gray-800 truncate">{cert.program?.name}</p>
+                      <p className="text-xs text-gray-400">Issued {new Date(cert.issued_date).toLocaleDateString()}</p>
                     </div>
-                    <div className="flex-shrink-0">
-                      <Badge variant={cert.status === "active" ? "default" : "secondary"}>{cert.status}</Badge>
-                    </div>
+                    <Badge
+                      className={`shrink-0 text-xs ${cert.status === "active" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}
+                    >
+                      {cert.status}
+                    </Badge>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">No certificates yet. Complete a program to earn your first!</p>
-              )}
-              {certificates.length > 0 && (
+                ))}
                 <Link href="/dashboard/employee/certificates">
-                  <Button variant="outline" size="sm" className="w-full bg-transparent">
+                  <Button variant="outline" size="sm" className="w-full mt-2 text-xs h-8 border-gray-200 hover:bg-gray-50">
                     View All Certificates
                   </Button>
                 </Link>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <Award className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-sm text-gray-400">No certificates yet.</p>
+                <p className="text-xs text-gray-300 mt-1">Complete a program to earn your first!</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Available Programs */}
       {unenrolledPrograms.length > 0 && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Available Programs</CardTitle>
-            <CardDescription>Certification programs you can enroll in</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="px-6 py-5 border-b border-gray-50">
+            <h2 className="text-sm font-semibold text-gray-900">Available Programs</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Certification programs you can enroll in</p>
+          </div>
+          <div className="p-5">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {unenrolledPrograms.map((program) => (
-                <div key={program.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <h4 className="font-medium mb-2">{program.name}</h4>
-                  <p className="text-sm text-gray-600 mb-3">{program.description}</p>
+                <div
+                  key={program.id}
+                  className="rounded-xl border border-gray-100 p-5 hover:border-indigo-200 hover:shadow-sm transition-all"
+                >
+                  <h4 className="text-sm font-semibold text-gray-900 mb-1.5">{program.name}</h4>
+                  <p className="text-xs text-gray-400 mb-4 line-clamp-2">{program.description}</p>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Clock className="h-4 w-4 mr-1" />
+                    <div className="flex items-center text-xs text-gray-400">
+                      <Clock className="h-3.5 w-3.5 mr-1" />
                       {program.duration_months} months
                     </div>
                     <Link href={`/dashboard/employee/programs/enroll/${program.id}`}>
-                      <Button size="sm">Enroll</Button>
+                      <Button size="sm" className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
+                        Enroll
+                      </Button>
                     </Link>
                   </div>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   )
