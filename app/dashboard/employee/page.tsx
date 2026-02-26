@@ -82,6 +82,10 @@ export default async function EmployeeDashboardPage() {
   const activeProgress = progress.filter((p) => p.status === "in_progress" || p.status === "enrolled")
   const completedProgress = progress.filter((p) => p.status === "completed")
   const activeCertificates = certificates.filter((c) => c.status === "active")
+  const avgProgressPct =
+    activeProgress.length > 0
+      ? Math.round(activeProgress.reduce((sum, p) => sum + p.progress_percentage, 0) / activeProgress.length)
+      : 0
 
   return (
     <div className="space-y-8">
@@ -117,11 +121,7 @@ export default async function EmployeeDashboardPage() {
           },
           {
             label: "Average Progress",
-            value: `${
-              activeProgress.length > 0
-                ? Math.round(activeProgress.reduce((sum, p) => sum + p.progress_percentage, 0) / activeProgress.length)
-                : 0
-            }%`,
+            value: `${avgProgressPct}%`,
             sub: "Across active programs",
             iconBg: "bg-emerald-50",
             iconColor: "text-emerald-600",

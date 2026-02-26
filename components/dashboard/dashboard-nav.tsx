@@ -73,6 +73,7 @@ export function DashboardNav({ user, profile }: DashboardNavProps) {
 
   const initials = profile.full_name
     .split(" ")
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .toUpperCase()

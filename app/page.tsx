@@ -77,15 +77,15 @@ export default function LandingPage() {
           {/* Social proof */}
           <div className="mt-14 flex flex-col sm:flex-row items-center justify-center gap-8 text-sm text-gray-500">
             <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
+              <div className="flex -space-x-2" aria-hidden="true">
                 {["I", "A", "M", "K"].map((l) => (
                   <div key={l} className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 border-2 border-white flex items-center justify-center text-white text-xs font-semibold">{l}</div>
                 ))}
               </div>
               <span>Trusted by 500+ professionals</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              {[1,2,3,4,5].map(i => <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />)}
+            <div className="flex items-center gap-1.5" aria-label="Rating: 4.9 out of 5 stars">
+              {[1,2,3,4,5].map(i => <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true" />)}
               <span className="font-medium text-gray-700">4.9</span>
               <span>rating</span>
             </div>
@@ -246,7 +246,9 @@ export default function LandingPage() {
           </p>
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
             <div className="flex gap-3">
+              <label htmlFor="verify-code" className="sr-only">Certificate verification code</label>
               <input
+                id="verify-code"
                 type="text"
                 placeholder="Enter verification code (e.g. ABC123XYZ789)"
                 className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"

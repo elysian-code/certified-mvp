@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Badge } from "@/components/ui/badge"
 import { Users, Award, FileText, TrendingUp, Calendar, CheckCircle } from "lucide-react"
+import Link from "next/link"
 
 export default async function OrganizationDashboardPage() {
   const supabase = await createClient()
@@ -68,12 +69,12 @@ export default async function OrganizationDashboardPage() {
             )}
           </p>
         </div>
-        <a
+        <Link
           href="/dashboard/organization/programs/new"
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors"
         >
           <span>+ New Program</span>
-        </a>
+        </Link>
       </div>
 
       {/* Stats Grid */}
@@ -204,7 +205,7 @@ export default async function OrganizationDashboardPage() {
                 desc: "Browse issued certificates",
               },
             ].map((action) => (
-              <a
+              <Link
                 key={action.href}
                 href={action.href}
                 className="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors group"
@@ -217,7 +218,7 @@ export default async function OrganizationDashboardPage() {
                   <p className="text-xs text-gray-400">{action.desc}</p>
                 </div>
                 <span className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg">›</span>
-              </a>
+              </Link>
             ))}
           </div>
         </div>
