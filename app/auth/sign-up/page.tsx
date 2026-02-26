@@ -10,20 +10,21 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Award } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState, Suspense } from "react"
 
-export default function SignUpPage() {
+function SignUpForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [fullName, setFullName] = useState("")
   const [role, setRole] = useState<string>("")
   const [organizationName, setOrganizationName] = useState("")
-  // Removed unused organizationId
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const inviteToken = searchParams.get("token")
 
   useEffect(() => {
     async function checkAuth() {
@@ -44,13 +45,37 @@ export default function SignUpPage() {
       setIsLoading(false);
       return;
     }
-    if (!role) {
+    // If no invite token, role must be selected
+    if (!inviteToken && !role) {
       setError("Please select a role");
       setIsLoading(false);
       return;
     }
     try {
-      await signUp({ email, password, fullName, role, organizationName });
+      // For invite-based sign-ups, force employee role
+      const effectiveRole = inviteToken ? "employee" : role
+      await signUp({ email, password, fullName, role: effectiveRole, organizationName });
+      
+      // If invite token exists, accept the invite after signup
+      if (inviteToken) {
+        const acceptResponse = await fetch("/api/accept-invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: inviteToken, email }),
+        })
+        if (!acceptResponse.ok) {
+          const data = await acceptResponse.json()
+          console.warn("Invite acceptance failed:", data.message)
+          // Show a non-blocking warning — user is still signed up
+          setError(
+            "Account created, but your invitation could not be automatically accepted. " +
+            "Please contact your organization administrator to be added to the program."
+          )
+          setIsLoading(false)
+          return
+        }
+      }
+      
       router.push("/dashboard");
     } catch (error: any) {
       setError(error?.message || "An unexpected error occurred during sign up. Please try again.");
@@ -58,6 +83,7 @@ export default function SignUpPage() {
       setIsLoading(false);
     }
   };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
       <div className="w-full max-w-md">
@@ -67,12 +93,20 @@ export default function SignUpPage() {
             <span className="text-2xl font-bold text-gray-900">Certified</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-          <p className="text-gray-600">Get started with professional certification management</p>
+          <p className="text-gray-600">
+            {inviteToken
+              ? "You've been invited to join a certification program"
+              : "Get started with professional certification management"}
+          </p>
         </div>
         <Card className="shadow-lg border-0">
           <CardHeader>
             <CardTitle>Sign Up</CardTitle>
-            <CardDescription>Create your account to start managing certifications</CardDescription>
+            <CardDescription>
+              {inviteToken
+                ? "Complete your registration to join the program"
+                : "Create your account to start managing certifications"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignUp} className="space-y-4">
@@ -98,19 +132,21 @@ export default function SignUpPage() {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select value={role} onValueChange={setRole}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="organization_admin">Organization Admin</SelectItem>
-                    <SelectItem value="employee">Employee</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {role === "organization_admin" && (
+              {!inviteToken && (
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select value={role} onValueChange={setRole}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select your role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="organization_admin">Organization Admin</SelectItem>
+                      <SelectItem value="employee">Employee</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {!inviteToken && role === "organization_admin" && (
                 <div className="space-y-2">
                   <Label htmlFor="organizationName">Organization Name</Label>
                   <Input
@@ -162,3 +198,12 @@ export default function SignUpPage() {
     </div>
   );
 }
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <SignUpForm />
+    </Suspense>
+  )
+}
+

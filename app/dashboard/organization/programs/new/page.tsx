@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CertificatePicker } from "@/components/certificate-picker"
 
 interface FormData {
@@ -20,6 +21,9 @@ interface FormData {
   durationMonths: string
   template: string
   isActive: boolean
+  reportSubmissionMethod: string
+  testDurationMinutes: string
+  questionsCount: string
 }
 
 export default function NewProgramPage() {
@@ -29,7 +33,10 @@ export default function NewProgramPage() {
     requirements: "",
     durationMonths: "",
     template: "classic",
-    isActive: true
+    isActive: true,
+    reportSubmissionMethod: "end",
+    testDurationMinutes: "60",
+    questionsCount: "20"
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -90,7 +97,10 @@ export default function NewProgramPage() {
         duration_months: Number(formData.durationMonths),
         is_active: formData.isActive,
         certificate_template: formData.template || 'classic',
-        organization_id: profile.organization_id
+        organization_id: profile.organization_id,
+        report_submission_method: formData.reportSubmissionMethod || 'end',
+        test_duration_minutes: Number(formData.testDurationMinutes) || 60,
+        questions_count: Number(formData.questionsCount) || 20
       }
 
       const { data: newProgram, error: insertError } = await supabase
@@ -196,6 +206,55 @@ export default function NewProgramPage() {
                 max="60"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reportMethod">Report Submission Method</Label>
+              <Select
+                value={formData.reportSubmissionMethod}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, reportSubmissionMethod: value }))}
+              >
+                <SelectTrigger id="reportMethod">
+                  <SelectValue placeholder="Select report method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily (after each lesson)</SelectItem>
+                  <SelectItem value="end">Once at end of program</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="questionsCount">Number of CBT Questions</Label>
+                <Select
+                  value={formData.questionsCount}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, questionsCount: value }))}
+                >
+                  <SelectTrigger id="questionsCount">
+                    <SelectValue placeholder="Select question count" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 Questions</SelectItem>
+                    <SelectItem value="20">20 Questions</SelectItem>
+                    <SelectItem value="30">30 Questions</SelectItem>
+                    <SelectItem value="50">50 Questions</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="testDuration">Test Duration (minutes)</Label>
+                <Input
+                  id="testDuration"
+                  type="number"
+                  value={formData.testDurationMinutes}
+                  onChange={handleChange("testDurationMinutes")}
+                  placeholder="60"
+                  min="10"
+                  max="300"
+                />
+              </div>
             </div>
 
             <div className="flex items-center space-x-2">

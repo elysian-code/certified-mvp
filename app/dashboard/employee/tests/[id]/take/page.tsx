@@ -17,6 +17,7 @@ interface Question {
   question_text: string
   question_type: "multiple_choice" | "true_false" | "short_answer"
   options: string[] | null
+  correct_answer: string
 }
 
 interface TestData {
@@ -25,7 +26,16 @@ interface TestData {
   description: string
   passing_score: number
   time_limit_minutes: number
+  program_id: string
   questions: Question[]
+}
+
+function getGrade(score: number): string {
+  if (score >= 90) return "excellent"
+  if (score >= 80) return "good"
+  if (score >= 70) return "pass"
+  if (score >= 50) return "fair"
+  return "fail"
 }
 
 export default function TakeTestPage({ params }: { params: { id: string } }) {
@@ -63,11 +73,24 @@ export default function TakeTestPage({ params }: { params: { id: string } }) {
       const { data: user } = await supabase.auth.getUser()
       if (!user.user) return
 
+      // Check if already attempted (one-time only)
+      const { data: existingAttempt } = await supabase
+        .from("test_attempts")
+        .select("id")
+        .eq("employee_id", user.user.id)
+        .eq("test_id", params.id)
+        .single()
+
+      if (existingAttempt) {
+        router.replace(`/dashboard/employee/tests/${params.id}/results`)
+        return
+      }
+
       const { data, error } = await supabase
         .from("cbt_tests")
         .select(`
           *,
-          cbt_questions(id, question_text, question_type, options)
+          cbt_questions(id, question_text, question_type, options, correct_answer)
         `)
         .eq("id", params.id)
         .single()
@@ -80,11 +103,13 @@ export default function TakeTestPage({ params }: { params: { id: string } }) {
         description: data.description,
         passing_score: data.passing_score,
         time_limit_minutes: data.time_limit_minutes,
+        program_id: data.program_id,
         questions: data.cbt_questions.map((q: any) => ({
           id: q.id,
           question_text: q.question_text,
           question_type: q.question_type,
-          options: q.options ? JSON.parse(q.options) : null,
+          options: q.options ? (Array.isArray(q.options) ? q.options : JSON.parse(q.options)) : null,
+          correct_answer: q.correct_answer,
         })),
       }
 
@@ -107,14 +132,38 @@ export default function TakeTestPage({ params }: { params: { id: string } }) {
       const { data: user } = await supabase.auth.getUser()
       if (!user.user) return
 
+      // Calculate score
+      const totalQuestions = test.questions.length
+      const correctCount = test.questions.filter(
+        (q) => answers[q.id] !== undefined && answers[q.id] === q.correct_answer
+      ).length
+      const score = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
+      const passed = score >= test.passing_score
+      const grade = getGrade(score)
+
       const { error } = await supabase.from("test_attempts").insert({
         employee_id: user.user.id,
         test_id: test.id,
         answers: JSON.stringify(answers),
+        score,
+        passed,
+        grade,
         completed_at: new Date().toISOString(),
       })
 
       if (error) throw error
+
+      // If passed, update employee progress status to completed
+      if (passed) {
+        const { error: progressError } = await supabase
+          .from("employee_progress")
+          .update({ status: "completed", progress_percentage: 100, completion_date: new Date().toISOString().split("T")[0] })
+          .eq("employee_id", user.user.id)
+          .eq("program_id", test.program_id)
+        if (progressError) {
+          console.error("Failed to update employee progress:", progressError.message)
+        }
+      }
 
       router.push(`/dashboard/employee/tests/${test.id}/results`)
     } catch (error) {
@@ -292,3 +341,4 @@ export default function TakeTestPage({ params }: { params: { id: string } }) {
     </div>
   )
 }
+

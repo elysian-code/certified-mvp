@@ -50,6 +50,20 @@ export default async function ProgramDetailPage({ params }: PageProps) {
   const tests = testsResult.data || []
   const reports = reportsResult.data || []
 
+  // Check if employee has already taken the test (one-time only)
+  let attemptsData: Array<{ id: string; test_id: string; score: number; passed: boolean; grade: string }> = []
+  if (tests.length > 0) {
+    const { data: attemptsResult, error: attemptsError } = await supabase
+      .from("test_attempts")
+      .select("id, test_id, score, passed, grade")
+      .eq("employee_id", profile.id)
+      .in("test_id", tests.map((t) => t.id))
+    if (!attemptsError && attemptsResult) {
+      attemptsData = attemptsResult
+    }
+  }
+  const takenTestIds = new Set(attemptsData.map((a) => a.test_id))
+
   if (!program) {
     redirect("/dashboard/employee/programs")
   }
@@ -141,6 +155,14 @@ export default async function ProgramDetailPage({ params }: PageProps) {
                   <h4 className="font-medium mb-2">Duration</h4>
                   <p className="text-gray-600">{program.duration_months} months</p>
                 </div>
+                <div>
+                  <h4 className="font-medium mb-2">Report Submission</h4>
+                  <p className="text-gray-600">
+                    {program.report_submission_method === "daily"
+                      ? "Daily — submit a report after each lesson"
+                      : "Once — submit a single report at the end of the program"}
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
@@ -149,24 +171,29 @@ export default async function ProgramDetailPage({ params }: PageProps) {
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {tests.length > 0 && (
-                  <Link href={`/dashboard/employee/programs/${id}/tests`}>
-                    <Button className="w-full justify-start">
-                      <Play className="h-4 w-4 mr-2" />
-                      Take Assessment
-                    </Button>
-                  </Link>
-                )}
+                {tests.length > 0 && (() => {
+                  const firstTest = tests[0]
+                  const alreadyTaken = takenTestIds.has(firstTest.id)
+                  return alreadyTaken ? (
+                    <Link href={`/dashboard/employee/tests/${firstTest.id}/results`}>
+                      <Button variant="outline" className="w-full justify-start bg-transparent">
+                        <Award className="h-4 w-4 mr-2" />
+                        View Test Results
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link href={`/dashboard/employee/tests/${firstTest.id}/take`}>
+                      <Button className="w-full justify-start">
+                        <Play className="h-4 w-4 mr-2" />
+                        Take Assessment
+                      </Button>
+                    </Link>
+                  )
+                })()}
                 <Link href={`/dashboard/employee/programs/${id}/reports/new`}>
                   <Button variant="outline" className="w-full justify-start bg-transparent">
                     <FileText className="h-4 w-4 mr-2" />
                     Submit Report
-                  </Button>
-                </Link>
-                <Link href={`/dashboard/employee/programs/${id}/materials`}>
-                  <Button variant="outline" className="w-full justify-start bg-transparent">
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    Study Materials
                   </Button>
                 </Link>
               </CardContent>
@@ -177,35 +204,64 @@ export default async function ProgramDetailPage({ params }: PageProps) {
         <TabsContent value="tests">
           <div className="space-y-6">
             {tests.length > 0 ? (
-              tests.map((test) => (
-                <Card key={test.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle>{test.name}</CardTitle>
-                        <CardDescription>{test.description}</CardDescription>
-                      </div>
-                      <Badge variant="outline">{test.passing_score}% to pass</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4 text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1" />
-                          {test.time_limit_minutes} minutes
+              tests.map((test) => {
+                const alreadyTaken = takenTestIds.has(test.id)
+                const attempt = attemptsData.find((a) => a.test_id === test.id)
+                return (
+                  <Card key={test.id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle>{test.name}</CardTitle>
+                          <CardDescription>{test.description}</CardDescription>
                         </div>
+                        <Badge variant="outline">{test.passing_score}% to pass</Badge>
                       </div>
-                      <Link href={`/dashboard/employee/tests/${test.id}`}>
-                        <Button>
-                          <Play className="h-4 w-4 mr-2" />
-                          Start Test
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <div className="flex items-center">
+                            <Clock className="h-4 w-4 mr-1" />
+                            {test.time_limit_minutes} minutes
+                          </div>
+                          {alreadyTaken && attempt && (
+                            <div className="text-sm">
+                              Score: <span className="font-medium">{attempt.score}%</span>
+                              {" · "}
+                              <span className={attempt.passed ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                                {attempt.passed ? "Passed" : "Failed"}
+                              </span>
+                              {attempt.grade && (
+                                <span className="ml-1 capitalize text-gray-500">({attempt.grade})</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {alreadyTaken ? (
+                          <Link href={`/dashboard/employee/tests/${test.id}/results`}>
+                            <Button variant="outline">
+                              View Results
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Link href={`/dashboard/employee/tests/${test.id}/take`}>
+                            <Button>
+                              <Play className="h-4 w-4 mr-2" />
+                              Start Test
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                      {!alreadyTaken && (
+                        <p className="text-xs text-amber-600 mt-2">
+                          ⚠ This test can only be taken once. Make sure you are ready before starting.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })
             ) : (
               <Card>
                 <CardContent className="text-center py-8">

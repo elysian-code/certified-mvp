@@ -29,6 +29,8 @@ interface CertificationProgram {
   updated_at?: string
   questions_count?: number
   passing_score?: number
+  report_submission_method?: string
+  test_duration_minutes?: number
 }
 
 export default async function ProgramPage({
@@ -149,6 +151,26 @@ export default async function ProgramPage({
                 {program.certificate_template}
               </p>
             </div>
+
+            <div>
+              <h3 className="font-medium text-gray-900">Report Submission</h3>
+              <p className="mt-2 text-gray-600">
+                {program.report_submission_method === "daily"
+                  ? "Daily (after each lesson)"
+                  : "Once at end of program"}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="font-medium text-gray-900">CBT Questions</h3>
+                <p className="mt-2 text-gray-600">{program.questions_count ?? 20} questions</p>
+              </div>
+              <div>
+                <h3 className="font-medium text-gray-900">Test Duration</h3>
+                <p className="mt-2 text-gray-600">{program.test_duration_minutes ?? 60} minutes</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -198,7 +220,6 @@ export default async function ProgramPage({
           }}
         />
       </div>
-```
     </div>
   )
 }
